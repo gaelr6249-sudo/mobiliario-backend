@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sistema de Gestión de Residuos - Mobiliario</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --green: #16a34a;
+    --gray: #6b7280;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 { font-size: 16px; margin: 0; line-height: 1.3; }
+  header .sub { font-size: 11px; color: var(--muted); }
+  .status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 6px;
+  }
+  main { max-width: 1000px; margin: 0 auto; padding: 16px; padding-bottom: 90px; }
+
+  nav.tabs {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    z-index: 20;
+  }
+  nav.tabs button {
+    background: none; border: none;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px; font-size: 11px; color: var(--muted);
+    padding: 6px 10px; cursor: pointer;
+  }
+  nav.tabs button.active { color: var(--primary); font-weight: 600; }
+  nav.tabs .icon { font-size: 20px; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    border: 1px solid var(--border);
+  }
+  .stat-card .num { font-size: 26px; font-weight: 700; }
+  .stat-card .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .chart-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .chart-card h3 { margin: 0 0 12px 0; font-size: 14px; color: var(--muted); }
+  canvas { max-height: 260px; }
+
+  .toolbar {
+    display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .toolbar input, .toolbar select {
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 14px;
+    background: var(--card);
+  }
+  .toolbar input { flex: 1; min-width: 140px; }
+
+  .item-list { display: flex; flex-direction: column; gap: 10px; }
+  .item-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 12px;
+    display: flex; gap: 12px; align-items: center;
+    cursor: pointer;
+  }
+  .item-card img {
+    width: 56px; height: 56px; border-radius: 10px;
+    object-fit: cover; background: #eee; flex-shrink: 0;
+  }
+  .item-card .info { flex: 1; min-width: 0; }
+  .item-card .info .name { font-weight: 600; font-size: 14px; }
+  .item-card .info .sub { font-size: 12px; color: var(--muted); }
+  .badge {
+    font-size: 11px; font-weight: 600;
+    padding: 4px 10px; border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge.almacenado { background: #dcfce7; color: var(--green); }
+  .badge.baja { background: #f3f4f6; color: var(--gray); }
+  .badge.otro { background: #e5e7eb; color: var(--muted); }
+
+  form.add-form { display: flex; flex-direction: column; gap: 12px; }
+  form.add-form label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  form.add-form input, form.add-form select {
+    padding: 12px; border-radius: 10px; border: 1px solid var(--border); font-size: 14px;
+  }
+  fieldset { border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+  fieldset legend { font-size: 12px; font-weight: 700; color: var(--primary); padding: 0 6px; }
+
+  .photo-preview {
+    width: 100%; max-width: 220px; height: 160px;
+    border-radius: 12px; border: 1px dashed var(--border);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; color: var(--muted); font-size: 13px; background: var(--card);
+  }
+  .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+  button.primary {
+    background: var(--primary); color: white; border: none;
+    padding: 13px; border-radius: 10px; font-size: 15px; font-weight: 600;
+    cursor: pointer;
+  }
+  button.primary:active { background: var(--primary-dark); }
+  button.secondary {
+    background: var(--card); color: var(--primary); border: 1px solid var(--primary);
+    padding: 10px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+
+  #qrPreview { display: flex; justify-content: center; margin-top: 6px; }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 50; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--card); width: 100%; max-width: 500px;
+    border-radius: 18px 18px 0 0; padding: 20px; max-height: 85vh; overflow-y: auto;
+  }
+  .modal h2 { margin-top: 0; font-size: 17px; }
+  .modal .close-btn {
+    float: right; border: none; background: none; font-size: 20px; cursor: pointer; color: var(--muted);
+  }
+  .modal .field-row { font-size: 13px; margin: 6px 0; display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .modal .field-row .k { color: var(--muted); }
+  .modal .field-row .v { font-weight: 600; text-align: right; }
+  #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; }
+
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 10px; font-size: 14px; }
+  .toast {
+    position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: white; padding: 10px 18px; border-radius: 999px;
+    font-size: 13px; z-index: 100; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ===== Diseño para pantallas grandes (PC / tablet horizontal) ===== */
+  @media (min-width: 860px) {
+    main { padding-bottom: 24px; }
+
+    nav.tabs {
+      position: sticky;
+      top: 0;
+      bottom: auto;
+      border-top: none;
+      border-bottom: 1px solid var(--border);
+      justify-content: center;
+      gap: 28px;
+      padding: 10px 0;
+    }
+    nav.tabs button {
+      flex-direction: row;
+      gap: 6px;
+      font-size: 13px;
+      padding: 8px 14px;
+      border-radius: 10px;
+    }
+    nav.tabs button.active { background: #eff4ff; }
+    nav.tabs .icon { font-size: 16px; }
+
+    .cards-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+    .chart-card canvas { max-height: 300px; }
+
+    /* Dashboard: gráficos lado a lado en vez de apilados */
+    #view-dashboard { display: grid; grid-template-columns: 1fr; gap: 0; }
+
+    .modal-overlay { align-items: center; }
+    .modal { border-radius: 18px; max-width: 480px; }
+
+    .item-card { cursor: pointer; }
+    .item-card:hover { border-color: var(--primary); }
+  }
+
+  @media (min-width: 860px) {
+    #view-add { max-width: 480px; margin: 0 auto; }
+  }
+
+  @media (min-width: 1100px) {
+    .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .charts-row .chart-card { margin-bottom: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>♻️ Gestión de Residuos / Mobiliario</h1>
+    <div class="sub">IT Pachuca</div>
+  </div>
+  <div style="font-size:12px; color:var(--muted); text-align:right;">
+    <span class="status-dot" id="statusDot"></span><span id="statusText">Conectado</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <section id="view-dashboard" class="view active">
+    <div class="cards-grid" id="statsGrid"></div>
+    <div class="chart-card">
+      <h3>Por estatus</h3>
+      <canvas id="chartEstatus"></canvas>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <h3>Por tipo de residuo</h3>
+        <canvas id="chartTipo"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Por clasificación (CRETIB)</h3>
+        <canvas id="chartClasificacion"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- LISTADO -->
+  <section id="view-list" class="view">
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="Buscar por nombre o ID..." />
+      <select id="filterEstatus">
+        <option value="">Todos los estatus</option>
+        <option value="Almacenado">Almacenado</option>
+        <option value="Baja definitiva">Baja definitiva</option>
+      </select>
+    </div>
+    <div class="item-list" id="itemList"></div>
+  </section>
+
+  <!-- ALTA -->
+  <section id="view-add" class="view">
+    <form class="add-form" id="addForm">
+
+      <div>
+        <label>Foto de evidencia</label>
+        <div class="photo-preview" id="photoPreview">Sin foto seleccionada</div>
+        <input type="file" accept="image/*" capture="environment" id="photoInput" style="margin-top:8px;" />
+      </div>
+
+      <div>
+        <label>ID Unico (se genera automático, puedes editarlo)</label>
+        <input type="text" id="fieldIDUnico" required />
+        <div style="background:#eff4ff; border-radius:10px; padding:10px 12px; font-size:12px; color:var(--primary); margin-top:8px;">
+          💡 Tip: puedes generar el ID y descargar el QR ahora mismo, pegarlo en el mueble, y completar el resto del formulario después (o dejarlo a medias e ir a escanearlo para retomarlo).
+        </div>
+        <div id="qrPreview"></div>
+        <button type="button" class="secondary" id="downloadQrBtn" style="width:100%; margin-top:8px;">⬇️ Descargar QR como imagen</button>
+      </div>
+
+      <div>
+        <label>Nombre de Residuo</label>
+        <input type="text" id="fieldNombre" placeholder="Ej. Silla de oficina, escritorio metálico..." />
+      </div>
+
+      <fieldset>
+        <legend>Clasificación</legend>
+        <label>Tipo de Residuo</label>
+        <select id="fieldTipoResiduo">
+          <option value="RU">RU</option>
+          <option value="RE">RE</option>
+          <option value="RS">RS</option>
+          <option value="RP">RP</option>
+        </select>
+        <label style="margin-top:8px; display:block;">Clasificación (CRETIB)</label>
+        <select id="fieldClasificacion">
+          <option value="CO">CO</option>
+          <option value="RE">RE</option>
+          <option value="EX">EX</option>
+          <option value="TO">TO</option>
+          <option value="IN">IN</option>
+          <option value="BI">BI</option>
+        </select>
+      </fieldset>
+
+      <div>
+        <label>Institución Educativa</label>
+        <select id="fieldInstitucion">
+          <option value="ITP">ITP</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Zona de Almacenamiento</label>
+        <select id="fieldZona">
+          <option value="GR">GR</option>
+          <option value="VE">VE</option>
+          <option value="AZ">AZ</option>
+          <option value="AM">AM</option>
+          <option value="RO">RO</option>
+          <option value="BL">BL</option>
+        </select>
+      </div>
+
+      <div style="display:flex; gap:10px;">
+        <div style="flex:1;">
+          <label>Cantidad</label>
+          <input type="number" step="any" id="fieldCantidad" />
+        </div>
+        <div style="flex:1;">
+          <label>Unidad de Medida</label>
+          <select id="fieldUnidad">
+            <option value="kg">kg</option>
+            <option value="pzas">pzas</option>
+            <option value="L">L</option>
+            <option value="m³">m³</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label>Peso Estimado (kg)</label>
+        <input type="number" step="any" id="fieldPeso" />
+      </div>
+
+      <div>
+        <label>Contenedor</label>
+        <select id="fieldContenedor">
+          <option value="Tarima">Tarima</option>
+          <option value="Estante">Estante</option>
+          <option value="Montón">Montón</option>
+          <option value="Tambo">Tambo</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Generador - Origen</label>
+        <select id="fieldGenerador">
+          <option value="Académico">Académico</option>
+          <option value="Administrativo">Administrativo</option>
+          <option value="Planeación">Planeación</option>
+          <option value="Desconocido">Desconocido</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Estatus</label>
+        <select id="fieldEstatus">
+          <option value="Almacenado">Almacenado</option>
+          <option value="Baja definitiva">Baja definitiva</option>
+        </select>
+      </div>
+
+      <button type="submit" class="primary">Guardar registro</button>
+    </form>
+  </section>
+
+  <!-- ESCANEAR -->
+  <section id="view-scan" class="view">
+    <button class="secondary" id="startScanBtn" style="width:100%;">Iniciar cámara para escanear QR</button>
+    <div id="reader"></div>
+    <div id="scanResult" style="margin-top:14px;"></div>
+  </section>
+
+</main>
+
+<nav class="tabs">
+  <button data-view="dashboard" class="active"><span class="icon">📊</span>Dashboard</button>
+  <button data-view="list"><span class="icon">📋</span>Lista</button>
+  <button data-view="add"><span class="icon">➕</span>Agregar</button>
+  <button data-view="scan"><span class="icon">🔍</span>Escanear</button>
+</nav>
+
+<!-- Modal detalle -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <button class="close-btn" id="closeModal">✕</button>
+    <h2 id="modalTitle">Detalle</h2>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ CONFIGURACIÓN ============
+// Si el frontend se sirve desde el mismo servidor backend, deja esto vacío ('').
+// Si lo despliegas por separado, pon aquí la URL completa del backend,
+// ej: 'https://tu-backend.onrender.com'
+const API_BASE = '';
+const API_URL = API_BASE + '/api/mobiliario';
+const POLL_INTERVAL_MS = 5000; // cada cuánto se refrescan los datos ("tiempo real")
+
+// Nombres EXACTOS de columnas en AppSheet (tabla "Sistema")
+const COL = {
+  ID: 'ID Unico',
+  INSTITUCION: 'Institución Educativa',
+  TIPO_RESIDUO: 'Tipo de Residuo',
+  CLASIFICACION: 'Clasificacion',
+  ZONA: 'Zona de Almacenamiento',
+  NOMBRE: 'Nombre de Residuo',
+  CANTIDAD: 'Cantidad',
+  UNIDAD: 'Unidad de Medida',
+  PESO: 'Peso Estimado',
+  CONTENEDOR: 'Contenedor',
+  GENERADOR: 'Generador - Origen',
+  ESTATUS: 'Estatus',
+  FOTO: 'Foto de Evidencia',
+  // Consecutivo y Codigo QR son campos calculados por fórmula en AppSheet: no se envían.
+};
+
+let mobiliario = [];
+let chartEstatus, chartTipo, chartClasificacion;
+let html5QrScanner = null;
+
+// ============ UTILIDADES ============
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function badgeClass(estatus) {
+  if (!estatus) return 'otro';
+  if (estatus === 'Almacenado') return 'almacenado';
+  if (estatus === 'Baja definitiva') return 'baja';
+  return 'otro';
+}
+
+function generarIDAutomatico() {
+  return 'RES-' + Date.now().toString().slice(-6);
+}
+
+// ============ CARGA DE DATOS ============
+async function cargarMobiliario(mostrarToastSiCambia = false) {
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error('Respuesta no válida del servidor');
+    const data = await res.json();
+    const nuevo = Array.isArray(data) ? data : (data.Rows || []);
+
+    if (mostrarToastSiCambia && mobiliario.length && nuevo.length !== mobiliario.length) {
+      toast('Datos actualizados');
+    }
+
+    mobiliario = nuevo;
+    setStatus(true);
+    try {
+      renderDashboard();
+    } catch (errDashboard) {
+      console.error('Error al dibujar el dashboard (los datos sí llegaron bien):', errDashboard);
+    }
+    try {
+      renderList();
+    } catch (errList) {
+      console.error('Error al dibujar la lista (los datos sí llegaron bien):', errList);
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus(false);
+  }
+}
+
+function setStatus(ok) {
+  document.getElementById('statusDot').style.background = ok ? '#16a34a' : '#dc2626';
+  document.getElementById('statusText').textContent = ok ? 'Conectado' : 'Sin conexión';
+}
+
+// ============ DASHBOARD ============
+function contarPor(campo) {
+  const conteo = {};
+  mobiliario.forEach(item => {
+    const val = item[campo] || 'Sin dato';
+    conteo[val] = (conteo[val] || 0) + 1;
+  });
+  return conteo;
+}
+
+function renderDashboard() {
+  const total = mobiliario.length;
+  const porEstatus = contarPor(COL.ESTATUS);
+  const porTipo = contarPor(COL.TIPO_RESIDUO);
+  const porClasificacion = contarPor(COL.CLASIFICACION);
+
+  const grid = document.getElementById('statsGrid');
+  grid.innerHTML = `
+    <div class="stat-card"><div class="num">${total}</div><div class="label">Total registros</div></div>
+    ${Object.entries(porEstatus).map(([k,v]) => `
+      <div class="stat-card"><div class="num">${v}</div><div class="label">${k}</div></div>
+    `).join('')}
+  `;
+
+  const ctx1 = document.getElementById('chartEstatus').getContext('2d');
+  if (chartEstatus) chartEstatus.destroy();
+  chartEstatus = new Chart(ctx1, {
+    type: 'doughnut',
+    data: { labels: Object.keys(porEstatus), datasets: [{ data: Object.values(porEstatus), backgroundColor: ['#16a34a','#6b7280','#2563eb','#d97706'] }] },
+    options: { plugins: { legend: { position: 'bottom' } } }
+  });
+
+  const ctx2 = document.getElementById('chartTipo').getContext('2d');
+  if (chartTipo) chartTipo.destroy();
+  chartTipo = new Chart(ctx2, {
+    type: 'bar',
+    data: { labels: Object.keys(porTipo), datasets: [{ label: 'Registros', data: Object.values(porTipo), backgroundColor: '#2563eb' }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+
+  const ctx3 = document.getElementById('chartClasificacion').getContext('2d');
+  if (chartClasificacion) chartClasificacion.destroy();
+  chartClasificacion = new Chart(ctx3, {
+    type: 'bar',
+    data: { labels: Object.keys(porClasificacion), datasets: [{ label: 'Registros', data: Object.values(porClasificacion), backgroundColor: '#d97706' }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+}
+
+// ============ LISTADO ============
+function renderList() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtroEstatus = document.getElementById('filterEstatus').value;
+
+  const filtrados = mobiliario.filter(item => {
+    const nombre = (item[COL.NOMBRE] || '').toLowerCase();
+    const id = (item[COL.ID] || '').toLowerCase();
+    const coincideBusqueda = !search || nombre.includes(search) || id.includes(search);
+    const coincideEstatus = !filtroEstatus || item[COL.ESTATUS] === filtroEstatus;
+    return coincideBusqueda && coincideEstatus;
+  });
+
+  const list = document.getElementById('itemList');
+
+  if (!filtrados.length) {
+    list.innerHTML = '<div class="empty-state">No hay registros que coincidan con la búsqueda.</div>';
+    return;
+  }
+
+  list.innerHTML = filtrados.map(item => {
+    const foto = item[COL.FOTO] || '';
+    const estatus = item[COL.ESTATUS] || 'Sin estatus';
+    const idEsc = (item[COL.ID]||'').replace(/'/g, "\\'");
+    return `
+      <div class="item-card" onclick="abrirDetalle('${idEsc}')">
+        ${foto ? `<img src="${foto}" />` : '<div style="width:56px;height:56px;border-radius:10px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:20px;">♻️</div>'}
+        <div class="info">
+          <div class="name">${item[COL.NOMBRE] || item[COL.ID]}</div>
+          <div class="sub">ID: ${item[COL.ID]}${item[COL.ZONA] ? ' · ' + item[COL.ZONA] : ''}</div>
+        </div>
+        <span class="badge ${badgeClass(estatus)}">${estatus}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+document.getElementById('searchInput').addEventListener('input', renderList);
+document.getElementById('filterEstatus').addEventListener('change', renderList);
+
+// ============ DETALLE / CAMBIO DE ESTATUS ============
+window.abrirDetalle = function(id) {
+  const item = mobiliario.find(m => m[COL.ID] === id);
+  if (!item) return;
+
+  const filas = [
+    ['Institución Educativa', item[COL.INSTITUCION]],
+    ['Tipo de Residuo', item[COL.TIPO_RESIDUO]],
+    ['Clasificación', item[COL.CLASIFICACION]],
+    ['Zona de Almacenamiento', item[COL.ZONA]],
+    ['Cantidad', item[COL.CANTIDAD]],
+    ['Unidad de Medida', item[COL.UNIDAD]],
+    ['Peso Estimado', item[COL.PESO]],
+    ['Contenedor', item[COL.CONTENEDOR]],
+    ['Generador - Origen', item[COL.GENERADOR]],
+  ];
+
+  document.getElementById('modalTitle').textContent = item[COL.NOMBRE] || item[COL.ID];
+  document.getElementById('modalContent').innerHTML = `
+    ${item[COL.FOTO] ? `<img src="${item[COL.FOTO]}" style="width:100%;border-radius:12px;margin-bottom:12px;" />` : ''}
+    <div class="field-row"><span class="k">ID Unico</span><span class="v">${item[COL.ID]}</span></div>
+    ${filas.filter(f => f[1]).map(f => `<div class="field-row"><span class="k">${f[0]}</span><span class="v">${f[1]}</span></div>`).join('')}
+    <div style="margin-top:14px;">
+      <button class="secondary" style="width:100%; margin-bottom:10px;" onclick="mostrarQRDetalle('${item[COL.ID]}')">Ver / descargar código QR</button>
+      <div id="qrDetalleContenedor" style="display:flex; justify-content:center; margin-bottom:10px;"></div>
+      <button class="secondary" id="downloadQrDetalleBtn" style="width:100%; display:none; margin-bottom:14px;">⬇️ Descargar QR como imagen</button>
+      <label style="font-size:13px; font-weight:600; color:var(--muted);">Cambiar estatus</label>
+      <select id="cambiarEstatusSelect" style="width:100%; padding:10px; border-radius:10px; border:1px solid var(--border); margin:6px 0 12px;">
+        <option value="Almacenado" ${item[COL.ESTATUS]==='Almacenado'?'selected':''}>Almacenado</option>
+        <option value="Baja definitiva" ${item[COL.ESTATUS]==='Baja definitiva'?'selected':''}>Baja definitiva</option>
+      </select>
+      <button class="primary" style="width:100%;" onclick="guardarCambioEstatus('${item[COL.ID]}')">Guardar cambio</button>
+    </div>
+  `;
+  document.getElementById('detailModal').classList.add('active');
+};
+
+window.mostrarQRDetalle = function(id) {
+  const item = mobiliario.find(m => m[COL.ID] === id);
+  if (!item) return;
+  const contenedor = document.getElementById('qrDetalleContenedor');
+  contenedor.innerHTML = '';
+  new QRCode(contenedor, { text: item[COL.ID], width: 160, height: 160, correctLevel: QRCode.CorrectLevel.M });
+
+  const btnDescarga = document.getElementById('downloadQrDetalleBtn');
+  btnDescarga.style.display = 'block';
+  btnDescarga.onclick = () => descargarQR('qrDetalleContenedor', 'QR-' + item[COL.ID]);
+};
+
+window.guardarCambioEstatus = async function(id) {
+  const nuevoEstatus = document.getElementById('cambiarEstatusSelect').value;
+  try {
+    const body = {};
+    body[COL.ESTATUS] = nuevoEstatus;
+    const res = await fetch(`${API_URL}/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('Error al guardar');
+    toast('Estatus actualizado');
+    document.getElementById('detailModal').classList.remove('active');
+    cargarMobiliario();
+  } catch (err) {
+    console.error(err);
+    toast('No se pudo actualizar');
+  }
+};
+
+document.getElementById('closeModal').addEventListener('click', () => {
+  document.getElementById('detailModal').classList.remove('active');
+});
+
+// ============ FORMULARIO DE ALTA ============
+let fotoBase64 = '';
+
+document.getElementById('fieldIDUnico').value = generarIDAutomatico();
+actualizarQR();
+
+document.getElementById('fieldIDUnico').addEventListener('input', actualizarQR);
+
+function actualizarQR() {
+  // El QR solo lleva el ID: es el dato que nunca cambia y que quedará pegado físicamente
+  // en el mueble. El estatus y demás datos se consultan en vivo cada vez que se escanea.
+  const id = document.getElementById('fieldIDUnico').value || '---';
+  const contenedor = document.getElementById('qrPreview');
+  contenedor.innerHTML = '';
+  new QRCode(contenedor, { text: id, width: 160, height: 160, correctLevel: QRCode.CorrectLevel.M });
+}
+
+function descargarQR(contenedorId, nombreArchivo) {
+  const contenedor = document.getElementById(contenedorId);
+  const canvas = contenedor.querySelector('canvas');
+  const img = contenedor.querySelector('img');
+  const dataUrl = canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+  if (!dataUrl) {
+    toast('No se pudo generar la imagen del QR');
+    return;
+  }
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = nombreArchivo + '.png';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+document.getElementById('downloadQrBtn').addEventListener('click', () => {
+  const id = document.getElementById('fieldIDUnico').value || 'mobiliario';
+  descargarQR('qrPreview', 'QR-' + id);
+});
+
+document.getElementById('photoInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    fotoBase64 = reader.result; // data:image/jpeg;base64,....
+    document.getElementById('photoPreview').innerHTML = `<img src="${fotoBase64}" />`;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('addForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const payload = {};
+  payload[COL.ID] = document.getElementById('fieldIDUnico').value;
+  payload[COL.NOMBRE] = document.getElementById('fieldNombre').value;
+  payload[COL.TIPO_RESIDUO] = document.getElementById('fieldTipoResiduo').value;
+  payload[COL.CLASIFICACION] = document.getElementById('fieldClasificacion').value;
+  payload[COL.INSTITUCION] = document.getElementById('fieldInstitucion').value;
+  payload[COL.ZONA] = document.getElementById('fieldZona').value;
+  payload[COL.CANTIDAD] = document.getElementById('fieldCantidad').value;
+  payload[COL.UNIDAD] = document.getElementById('fieldUnidad').value;
+  payload[COL.PESO] = document.getElementById('fieldPeso').value;
+  payload[COL.CONTENEDOR] = document.getElementById('fieldContenedor').value;
+  payload[COL.GENERADOR] = document.getElementById('fieldGenerador').value;
+  payload[COL.ESTATUS] = document.getElementById('fieldEstatus').value;
+
+  // Si hay foto, se envía en el formato que espera la API de AppSheet para columnas de imagen.
+  if (fotoBase64) {
+    payload[COL.FOTO] = fotoBase64 + ';filename:' + payload[COL.ID] + '.jpg';
+  }
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Error al guardar');
+
+    toast('Registro agregado ✅');
+    document.getElementById('addForm').reset();
+    fotoBase64 = '';
+    document.getElementById('photoPreview').innerHTML = 'Sin foto seleccionada';
+    document.getElementById('fieldIDUnico').value = generarIDAutomatico();
+    actualizarQR();
+    cargarMobiliario();
+    cambiarVista('list');
+  } catch (err) {
+    console.error(err);
+    toast('No se pudo guardar el registro');
+  }
+});
+
+// ============ ESCÁNER QR ============
+document.getElementById('startScanBtn').addEventListener('click', () => {
+  if (html5QrScanner) return;
+  html5QrScanner = new Html5Qrcode('reader');
+  html5QrScanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: 220 },
+    (decodedText) => {
+      // Compatibilidad: si el QR es viejo (traía JSON con más datos), igual extraemos el ID.
+      let idLeido = decodedText;
+      try {
+        const parsed = JSON.parse(decodedText);
+        if (parsed && parsed.id) idLeido = parsed.id;
+      } catch (e) {
+        // No era JSON, el texto leído ya es el ID directamente (formato actual)
+      }
+
+      const item = mobiliario.find(m => m[COL.ID] === idLeido);
+
+      if (item) {
+        // El mueble ya está registrado: mostramos su estatus y datos actuales
+        document.getElementById('scanResult').innerHTML = `<p>Código leído: <strong>${idLeido}</strong> ✅ ya registrado</p>`;
+        abrirDetalle(item[COL.ID]);
+      } else {
+        // El QR está pegado en el mueble pero aún no existe el registro: abrimos el
+        // formulario de alta con ese mismo ID para completarlo ahora.
+        document.getElementById('scanResult').innerHTML = `<p>Código leído: <strong>${idLeido}</strong> — todavía no está registrado. Completa sus datos para darlo de alta.</p>`;
+        toast('ID no registrado — completa el alta');
+        document.getElementById('fieldIDUnico').value = idLeido;
+        actualizarQR();
+        cambiarVista('add');
+      }
+      detenerScanner();
+    },
+    () => {} // errores de lectura frame a frame, se ignoran
+  ).catch(err => {
+    toast('No se pudo acceder a la cámara');
+    console.error(err);
+  });
+});
+
+function detenerScanner() {
+  if (html5QrScanner) {
+    html5QrScanner.stop().then(() => {
+      html5QrScanner.clear();
+      html5QrScanner = null;
+    }).catch(() => {});
+  }
+}
+
+// ============ NAVEGACIÓN ============
+function cambiarVista(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`nav.tabs button[data-view="${view}"]`).classList.add('active');
+
+  if (view !== 'scan') detenerScanner();
+}
+
+document.querySelectorAll('nav.tabs button').forEach(btn => {
+  btn.addEventListener('click', () => cambiarVista(btn.dataset.view));
+});
+
+// ============ ARRANQUE Y TIEMPO REAL ============
+cargarMobiliario();
+setInterval(() => cargarMobiliario(true), POLL_INTERVAL_MS);
+</script>
+</body>
+</html>
