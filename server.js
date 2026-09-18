@@ -11,7 +11,7 @@ app.use(express.json({ limit: '10mb' })); // limite mayor para permitir fotos en
 app.use('/api/mobiliario', mobiliarioRoutes);
 
 // Sirve la app web (frontend) desde el mismo servidor
-app.use(express.static(path.join(__dirname, '..', 'frontend')));
+app.use(express.static(path.join(__dirname, 'frontend')));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', mensaje: 'Servidor de gestión de mobiliario activo' });
