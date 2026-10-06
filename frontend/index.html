@@ -453,6 +453,20 @@ const COL = {
   // Consecutivo y Codigo QR son campos calculados por fórmula en AppSheet: no se envían.
 };
 
+// AppSheet devuelve en las columnas de imagen solo una RUTA de archivo (ej. "Sistema_Images/abc.jpg"),
+// no una URL. Esta función arma la URL real que el navegador sí puede cargar.
+const APPSHEET_APP_NAME = 'Table1App-137893580';
+const APPSHEET_TABLE_NAME = 'Sistema';
+
+function urlFoto(valor) {
+  if (!valor) return '';
+  if (/^(https?:|data:)/i.test(valor)) return valor; // ya es una URL completa
+  return 'https://www.appsheet.com/template/gettablefileurl'
+    + '?appName=' + encodeURIComponent(APPSHEET_APP_NAME)
+    + '&tableName=' + encodeURIComponent(APPSHEET_TABLE_NAME)
+    + '&fileName=' + encodeURIComponent(valor);
+}
+
 let mobiliario = [];
 let chartEstatus, chartTipo, chartClasificacion;
 let html5QrScanner = null;
@@ -581,7 +595,7 @@ function renderList() {
   }
 
   list.innerHTML = filtrados.map(item => {
-    const foto = item[COL.FOTO] || '';
+    const foto = urlFoto(item[COL.FOTO]);
     const estatus = item[COL.ESTATUS] || 'Sin estatus';
     const idEsc = (item[COL.ID]||'').replace(/'/g, "\\'");
     return `
@@ -619,7 +633,7 @@ window.abrirDetalle = function(id) {
 
   document.getElementById('modalTitle').textContent = item[COL.NOMBRE] || item[COL.ID];
   document.getElementById('modalContent').innerHTML = `
-    ${item[COL.FOTO] ? `<img src="${item[COL.FOTO]}" style="width:100%;border-radius:12px;margin-bottom:12px;" />` : ''}
+    ${item[COL.FOTO] ? `<img src="${urlFoto(item[COL.FOTO])}" style="width:100%;border-radius:12px;margin-bottom:12px;" />` : ''}
     <div class="field-row"><span class="k">ID Unico</span><span class="v">${item[COL.ID]}</span></div>
     ${filas.filter(f => f[1]).map(f => `<div class="field-row"><span class="k">${f[0]}</span><span class="v">${f[1]}</span></div>`).join('')}
     <div style="margin-top:14px;">
