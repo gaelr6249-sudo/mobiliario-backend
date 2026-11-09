@@ -217,7 +217,7 @@
     .chart-card canvas { max-height: 300px; }
 
     /* Dashboard: gráficos lado a lado en vez de apilados */
-    #view-dashboard { display: grid; grid-template-columns: 1fr; gap: 0; }
+    #view-dashboard.active { display: grid; grid-template-columns: 1fr; gap: 0; }
 
     .modal-overlay { align-items: center; }
     .modal { border-radius: 18px; max-width: 480px; }
@@ -240,6 +240,39 @@
 .ia-panel .ia-warn{color:#b45309;margin-top:6px}
 .ia-panel .ia-err{color:#b91c1c}
 .sugerido{outline:2px solid #a78bfa;background:#faf7ff}
+
+  /* ===== Indicadores adicionales ===== */
+  .ind-title { font-size: 15px; font-weight: 700; margin: 8px 0 12px; }
+  .stat-card .num.sm { font-size: 22px; }
+  .stat-card .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .barlist { display: flex; flex-direction: column; gap: 10px; }
+  .barrow { display: grid; grid-template-columns: 150px 1fr 70px; align-items: center; gap: 10px; font-size: 13px; }
+  .barrow .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .barrow .val { text-align: right; font-variant-numeric: tabular-nums; }
+  .barrow .track { height: 14px; background: #f1f2f4; border-radius: 4px; position: relative; }
+  .barrow .fill { height: 100%; border-radius: 0 4px 4px 0; min-width: 2px; }
+  .barrow .fill.split { display: flex; overflow: hidden; border-radius: 0 4px 4px 0; gap: 2px; background: transparent; }
+  .barrow .fill.split span { height: 100%; }
+  .barrow[title] { cursor: default; }
+  .legend-inline { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-bottom: 10px; flex-wrap: wrap; }
+  .legend-inline i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 1px solid #cbd0d6; }
+  .tbl-wrap { overflow-x: auto; }
+  table.ind { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.ind th, table.ind td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  table.ind th:first-child, table.ind td:first-child { text-align: left; }
+  table.ind th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  table.ind tr.tot td { font-weight: 700; border-bottom: none; }
+  .calidad li { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; gap: 10px; }
+  .calidad li:last-child { border-bottom: none; }
+  .calidad ul { list-style: none; margin: 0; padding: 0; }
+  .calidad .cnt { font-weight: 700; min-width: 36px; text-align: right; }
+  .calidad .ok { color: var(--green); }
+  .calidad .warn { color: #b45309; }
+  .calidad button { font-size: 12px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); cursor: pointer; }
+  .muted-note { font-size: 11px; color: var(--muted); margin-top: 10px; }
+  @media (max-width: 520px) { .barrow { grid-template-columns: 112px 1fr 56px; font-size: 12px; } }
+  @media (min-width: 1100px) { .charts-row { margin-bottom: 20px; } }
 </style>
 </head>
 <body>
@@ -273,6 +306,44 @@
         <canvas id="chartClasificacion"></canvas>
       </div>
     </div>
+
+    <!-- ===== INDICADORES ADICIONALES ===== -->
+    <div class="ind-title">Indicadores de peso y avance</div>
+    <div class="cards-grid" id="kpiGrid"></div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <h3>Peso por zona de almacenamiento (kg)</h3>
+        <div class="legend-inline"><span><i style="background:#2563eb"></i>Almacenado</span><span><i style="background:#9ca3af"></i>Baja definitiva</span></div>
+        <div class="barlist" id="barZona"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Peso por generador – origen (kg)</h3>
+        <div class="barlist" id="barGenerador"></div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <h3>Artículos más pesados (top 10, kg)</h3>
+        <div class="barlist" id="barTop"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Peso por tipo de contenedor (kg)</h3>
+        <div class="barlist" id="barContenedor"></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Zona × estatus (kg y registros)</h3>
+      <div class="tbl-wrap" id="tablaZona"></div>
+    </div>
+
+    <div class="chart-card calidad">
+      <h3>Calidad de los datos</h3>
+      <ul id="listaCalidad"></ul>
+      <div class="muted-note">Registros con datos faltantes o dudosos. "Ver" abre la lista filtrada.</div>
+    </div>
   </section>
 
   <!-- LISTADO -->
@@ -285,6 +356,7 @@
         <option value="Baja definitiva">Baja definitiva</option>
       </select>
     </div>
+    <div id="chipCalidad" style="display:none;justify-content:space-between;align-items:center;gap:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:12px"></div>
     <div class="item-list" id="itemList"></div>
   </section>
 
@@ -476,6 +548,7 @@ function urlFoto(valor) {
 }
 
 let mobiliario = [];
+let ultimaFirma = '';
 let chartEstatus, chartTipo, chartClasificacion;
 let html5QrScanner = null;
 
@@ -510,6 +583,9 @@ async function cargarMobiliario(mostrarToastSiCambia = false) {
       toast('Datos actualizados');
     }
 
+    const firma = JSON.stringify(nuevo);
+    if (firma === ultimaFirma) { setStatus(true); return; }
+    ultimaFirma = firma;
     mobiliario = nuevo;
     setStatus(true);
     try {
@@ -580,7 +656,146 @@ function renderDashboard() {
     data: { labels: Object.keys(porClasificacion), datasets: [{ label: 'Registros', data: Object.values(porClasificacion), backgroundColor: '#d97706' }] },
     options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
   });
+
+  renderIndicadores();
 }
+
+
+// ============ INDICADORES ADICIONALES ============
+const ZONAS = {
+  GR: { nombre: 'Gris · Recepción', color: '#9ca3af' },
+  VE: { nombre: 'Verde · Reuso', color: '#16a34a' },
+  AZ: { nombre: 'Azul · Reciclaje', color: '#2563eb' },
+  AM: { nombre: 'Amarilla', color: '#eab308' },
+  BL: { nombre: 'Blanca · Retención', color: '#ffffff' },
+  RO: { nombre: 'Roja · Disposición final', color: '#dc2626' },
+};
+const C_ALM = '#2563eb', C_BAJA = '#9ca3af', C_UNO = '#2563eb';
+
+function num(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  const n = Number(String(v).replace(/[^0-9.\-]/g, ''));
+  return isFinite(n) ? n : 0;
+}
+function fmt(n, d = 0) { return n.toLocaleString('es-MX', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+function esc(t) { return String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function piezas(it) { return /pza/i.test(it[COL.UNIDAD] || '') ? num(it[COL.CANTIDAD]) : 0; }
+function esBaja(it) { return it[COL.ESTATUS] === 'Baja definitiva'; }
+
+function agrupar(campo) {
+  const g = {};
+  mobiliario.forEach(it => {
+    const k = it[campo] || 'Sin dato';
+    g[k] = g[k] || { kg: 0, kgBaja: 0, reg: 0, pzas: 0 };
+    const kg = num(it[COL.PESO]);
+    g[k].kg += kg; g[k].reg += 1; g[k].pzas += piezas(it);
+    if (esBaja(it)) g[k].kgBaja += kg;
+  });
+  return g;
+}
+
+function barras(contenedorId, filas, opciones = {}) {
+  const el = document.getElementById(contenedorId);
+  if (!filas.length) { el.innerHTML = '<div class="muted-note">Sin datos todavía.</div>'; return; }
+  const max = Math.max(...filas.map(f => f.valor), 1);
+  el.innerHTML = filas.map(f => {
+    const w = (f.valor / max) * 100;
+    let barra;
+    if (f.partes) {
+      barra = `<div class="fill split" style="width:${w}%">` + f.partes.filter(p => p.valor > 0).map(p =>
+        `<span style="flex:${p.valor} 0 0;background:${p.color}"></span>`).join('') + '</div>';
+    } else {
+      barra = `<div class="fill" style="width:${w}%;background:${f.color || C_UNO}"></div>`;
+    }
+    const sw = f.swatch ? `<span class="swatch" style="background:${f.swatch}"></span>` : '';
+    return `<div class="barrow" title="${esc(f.tip || '')}"><span class="lbl">${sw}${esc(f.etiqueta)}</span><div class="track">${barra}</div><span class="val">${fmt(f.valor, opciones.dec ?? 0)}</span></div>`;
+  }).join('');
+}
+
+function renderIndicadores() {
+  const kgTot = mobiliario.reduce((a, it) => a + num(it[COL.PESO]), 0);
+  const kgBaja = mobiliario.filter(esBaja).reduce((a, it) => a + num(it[COL.PESO]), 0);
+  const pzTot = mobiliario.reduce((a, it) => a + piezas(it), 0);
+  const pct = kgTot ? (kgBaja / kgTot) * 100 : 0;
+  const calidad = revisarCalidad();
+  const incompletos = new Set(calidad.flatMap(c => c.ids)).size;
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="stat-card"><div class="num sm">${fmt(pzTot)}</div><div class="label">Piezas registradas</div><div class="hint">Registros en piezas (pzas)</div></div>
+    <div class="stat-card"><div class="num sm">${fmt(kgTot)} kg</div><div class="label">Peso total estimado</div></div>
+    <div class="stat-card"><div class="num sm">${fmt(kgBaja)} kg</div><div class="label">Peso con baja definitiva</div><div class="hint">${fmt(pct, 1)} % del total</div></div>
+    <div class="stat-card"><div class="num sm">${fmt(kgTot - kgBaja)} kg</div><div class="label">Peso aún almacenado</div></div>
+    <div class="stat-card"><div class="num sm">${incompletos}</div><div class="label">Registros por revisar</div><div class="hint">Ver “Calidad de los datos”</div></div>
+  `;
+
+  // Peso por zona, dividido en almacenado / baja definitiva
+  const gz = agrupar(COL.ZONA);
+  const ordenZonas = Object.keys(ZONAS).filter(z => gz[z]).concat(Object.keys(gz).filter(z => !ZONAS[z]));
+  barras('barZona', ordenZonas.map(z => ({
+    etiqueta: ZONAS[z] ? ZONAS[z].nombre : z,
+    swatch: ZONAS[z] ? ZONAS[z].color : '#e5e7eb',
+    valor: gz[z].kg,
+    partes: [{ valor: gz[z].kg - gz[z].kgBaja, color: C_ALM }, { valor: gz[z].kgBaja, color: C_BAJA }],
+    tip: `${gz[z].reg} registros · ${fmt(gz[z].pzas)} piezas · ${fmt(gz[z].kg - gz[z].kgBaja)} kg almacenado · ${fmt(gz[z].kgBaja)} kg baja definitiva`,
+  })));
+
+  const gg = agrupar(COL.GENERADOR);
+  barras('barGenerador', Object.entries(gg).sort((a, b) => b[1].kg - a[1].kg).map(([k, v]) => ({
+    etiqueta: k, valor: v.kg, tip: `${v.reg} registros · ${fmt(v.pzas)} piezas`,
+  })));
+
+  const gc = agrupar(COL.CONTENEDOR);
+  barras('barContenedor', Object.entries(gc).sort((a, b) => b[1].kg - a[1].kg).map(([k, v]) => ({
+    etiqueta: k, valor: v.kg, tip: `${v.reg} registros · ${fmt(v.pzas)} piezas`,
+  })));
+
+  const top = [...mobiliario].sort((a, b) => num(b[COL.PESO]) - num(a[COL.PESO])).slice(0, 10);
+  barras('barTop', top.map(it => ({
+    etiqueta: it[COL.NOMBRE] || it[COL.ID], valor: num(it[COL.PESO]),
+    color: esBaja(it) ? C_BAJA : C_ALM,
+    tip: `${it[COL.ID]} · ${it[COL.NOMBRE] || ''} · ${fmt(num(it[COL.CANTIDAD]))} ${it[COL.UNIDAD] || ''} · ${it[COL.ESTATUS] || ''}`,
+  })));
+
+  // Tabla zona x estatus
+  const estatus = ['Almacenado', 'Baja definitiva'];
+  mobiliario.forEach(it => { const e = it[COL.ESTATUS] || 'Sin dato'; if (!estatus.includes(e)) estatus.push(e); });
+  const celda = (z, e) => mobiliario.filter(it => (it[COL.ZONA] || 'Sin dato') === z && (it[COL.ESTATUS] || 'Sin dato') === e);
+  let html = '<table class="ind"><thead><tr><th>Zona</th>' + estatus.map(e => `<th>${esc(e)}</th>`).join('') + '<th>Total</th></tr></thead><tbody>';
+  ordenZonas.forEach(z => {
+    html += `<tr><td><span class="swatch" style="background:${ZONAS[z] ? ZONAS[z].color : '#e5e7eb'}"></span>${esc(ZONAS[z] ? ZONAS[z].nombre : z)}</td>`;
+    estatus.forEach(e => { const r = celda(z, e); const kg = r.reduce((a, it) => a + num(it[COL.PESO]), 0); html += `<td>${r.length ? fmt(kg) + ' kg · ' + r.length : '—'}</td>`; });
+    html += `<td>${fmt(gz[z].kg)} kg · ${gz[z].reg}</td></tr>`;
+  });
+  html += '<tr class="tot"><td>Total</td>' + estatus.map(e => { const r = mobiliario.filter(it => (it[COL.ESTATUS] || 'Sin dato') === e); return `<td>${fmt(r.reduce((a, it) => a + num(it[COL.PESO]), 0))} kg · ${r.length}</td>`; }).join('') + `<td>${fmt(kgTot)} kg · ${mobiliario.length}</td></tr></tbody></table>`;
+  document.getElementById('tablaZona').innerHTML = html;
+
+  document.getElementById('listaCalidad').innerHTML = calidad.map((c, i) => `
+    <li><span>${esc(c.texto)}</span><span style="display:flex;gap:10px;align-items:center">
+      <span class="cnt ${c.ids.length ? 'warn' : 'ok'}">${c.ids.length ? c.ids.length : '✓'}</span>
+      ${c.ids.length ? `<button onclick="verCalidad(${i})">Ver</button>` : ''}</span></li>`).join('');
+}
+
+let ultimaCalidad = [];
+function revisarCalidad() {
+  const vacio = campo => mobiliario.filter(it => !String(it[campo] ?? '').trim()).map(it => it[COL.ID]);
+  ultimaCalidad = [
+    { texto: 'Peso estimado en 0 o vacío', ids: mobiliario.filter(it => num(it[COL.PESO]) <= 0).map(it => it[COL.ID]) },
+    { texto: 'Sin foto de evidencia', ids: vacio(COL.FOTO) },
+    { texto: 'Generador desconocido o vacío', ids: mobiliario.filter(it => !it[COL.GENERADOR] || it[COL.GENERADOR] === 'Desconocido').map(it => it[COL.ID]) },
+    { texto: 'Sin zona de almacenamiento', ids: vacio(COL.ZONA) },
+    { texto: 'Sin clasificación CRETIB', ids: vacio(COL.CLASIFICACION) },
+  ];
+  return ultimaCalidad;
+}
+
+function verCalidad(i) {
+  const ids = new Set(ultimaCalidad[i].ids);
+  filtroCalidad = { texto: ultimaCalidad[i].texto, ids };
+  document.querySelector('nav.tabs button[data-view="list"]').click();
+  renderList();
+  toast('Mostrando: ' + ultimaCalidad[i].texto);
+}
+let filtroCalidad = null;
 
 // ============ LISTADO ============
 function renderList() {
@@ -592,8 +807,15 @@ function renderList() {
     const id = (item[COL.ID] || '').toLowerCase();
     const coincideBusqueda = !search || nombre.includes(search) || id.includes(search);
     const coincideEstatus = !filtroEstatus || item[COL.ESTATUS] === filtroEstatus;
-    return coincideBusqueda && coincideEstatus;
+    const coincideCalidad = !filtroCalidad || filtroCalidad.ids.has(item[COL.ID]);
+    return coincideBusqueda && coincideEstatus && coincideCalidad;
   });
+
+  const chip = document.getElementById('chipCalidad');
+  if (filtroCalidad) {
+    chip.style.display = 'flex';
+    chip.innerHTML = `<span>Filtro: ${esc(filtroCalidad.texto)} (${filtrados.length})</span><button onclick="filtroCalidad=null;renderList()">Quitar filtro ✕</button>`;
+  } else chip.style.display = 'none';
 
   const list = document.getElementById('itemList');
 
