@@ -6,6 +6,7 @@
 <title>Sistema de Gestión de Residuos - Mobiliario</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="etiqueta3d.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root {
@@ -273,6 +274,8 @@
   .muted-note { font-size: 11px; color: var(--muted); margin-top: 10px; }
   @media (max-width: 520px) { .barrow { grid-template-columns: 112px 1fr 56px; font-size: 12px; } }
   @media (min-width: 1100px) { .charts-row { margin-bottom: 20px; } }
+  .hint-3d { font-size: 12px; color: var(--muted); text-align: center; margin-top: 6px; line-height: 1.4; }
+  .hint-3d a { color: inherit; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -380,6 +383,8 @@
         </div>
         <div id="qrPreview"></div>
         <button type="button" class="secondary" id="downloadQrBtn" style="width:100%; margin-top:8px;">⬇️ Descargar QR como imagen</button>
+        <button type="button" class="secondary" id="etiqueta3dBtn" style="width:100%; margin-top:8px;">🧊 Descargar etiqueta 3D (.3mf)</button>
+        <div class="hint-3d">Lleva el ID, el nombre y la zona que captures en este formulario. <a href="#" id="etiqueta3dStlLink">Versión STL</a> para impresora de un solo color.</div>
       </div>
 
       <div>
@@ -870,6 +875,8 @@ window.abrirDetalle = function(id) {
       <button class="secondary" style="width:100%; margin-bottom:10px;" onclick="mostrarQRDetalle('${item[COL.ID]}')">Ver / descargar código QR</button>
       <div id="qrDetalleContenedor" style="display:flex; justify-content:center; margin-bottom:10px;"></div>
       <button class="secondary" id="downloadQrDetalleBtn" style="width:100%; display:none; margin-bottom:14px;">⬇️ Descargar QR como imagen</button>
+      <button class="secondary" style="width:100%;" onclick="descargarEtiqueta3DItem('${item[COL.ID]}', '3mf', this)">🧊 Descargar etiqueta 3D (.3mf)</button>
+      <div class="hint-3d" style="margin-bottom:14px;">Con el nombre, ID y zona de este artículo. <a href="#" onclick="descargarEtiqueta3DItem('${item[COL.ID]}', 'stl', this); return false;">Versión STL</a> para impresora de un solo color.</div>
       <label style="font-size:13px; font-weight:600; color:var(--muted);">Cambiar estatus</label>
       <select id="cambiarEstatusSelect" style="width:100%; padding:10px; border-radius:10px; border:1px solid var(--border); margin:6px 0 12px;">
         <option value="Almacenado" ${item[COL.ESTATUS]==='Almacenado'?'selected':''}>Almacenado</option>
@@ -950,6 +957,46 @@ function descargarQR(contenedorId, nombreArchivo) {
   link.click();
   document.body.removeChild(link);
 }
+
+// ============ ETIQUETA 3D ============
+// Base clara (2 mm) + relieve oscuro (0.6 mm). En impresoras de un solo color se pone
+// una pausa / cambio de filamento a 2.0 mm. El generador está en etiqueta3d.js.
+async function generarEtiqueta3D(datos, formato, boton) {
+  if (!datos.id) { toast('Primero escribe el ID'); return; }
+  const textoOriginal = boton ? boton.textContent : '';
+  if (boton) { boton.textContent = 'Generando etiqueta 3D…'; boton.style.pointerEvents = 'none'; }
+  try {
+    await Etiqueta3D.descargar(datos, formato);
+    toast('Etiqueta 3D descargada');
+  } catch (err) {
+    console.error(err);
+    toast('No se pudo generar la etiqueta 3D');
+  } finally {
+    if (boton) { boton.textContent = textoOriginal; boton.style.pointerEvents = ''; }
+  }
+}
+
+window.descargarEtiqueta3DItem = function(id, formato, boton) {
+  const item = mobiliario.find(m => m[COL.ID] === id);
+  if (!item) return;
+  generarEtiqueta3D({ id: item[COL.ID], residuo: item[COL.NOMBRE], zona: item[COL.ZONA] }, formato, boton);
+};
+
+function datosEtiquetaFormulario() {
+  return {
+    id: document.getElementById('fieldIDUnico').value.trim(),
+    residuo: document.getElementById('fieldNombre').value.trim(),
+    zona: document.getElementById('fieldZona').value,
+  };
+}
+
+document.getElementById('etiqueta3dBtn').addEventListener('click', (e) => {
+  generarEtiqueta3D(datosEtiquetaFormulario(), '3mf', e.currentTarget);
+});
+document.getElementById('etiqueta3dStlLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  generarEtiqueta3D(datosEtiquetaFormulario(), 'stl', e.currentTarget);
+});
 
 document.getElementById('downloadQrBtn').addEventListener('click', () => {
   const id = document.getElementById('fieldIDUnico').value || 'mobiliario';
